@@ -1,0 +1,810 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>デトックス度診断</title>
+  <script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { background: #0E1024; }
+  </style>
+</head>
+<body>
+  <div id="root"></div>
+
+  <script type="text/babel">
+    const { useState, useEffect } = React;
+
+    // Sparkles icon (lucide-react の代替SVG)
+    function Sparkles({ size = 24, color = "currentColor" }) {
+      return (
+        <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275L12 3Z"/>
+          <path d="M5 3v4"/><path d="M19 17v4"/><path d="M3 5h4"/><path d="M17 19h4"/>
+        </svg>
+      );
+    }
+
+    const HEALY_SESSION_URL = "https://example.com/healy-session";
+    const NOTE_URL = "https://note.com/your_note_id";
+    const LINE_URL = "https://line.me/R/ti/p/your_line_id";
+
+    const QUESTIONS = [
+      {
+        group: "gut",
+        text: "発酵食品（納豆・味噌・キムチ・ヨーグルトなど）を食べる頻度は？",
+        options: [
+          { label: "ほぼ毎日", value: 1 },
+          { label: "週に3〜4回", value: 2 },
+          { label: "週に1回程度", value: 3 },
+          { label: "ほとんど食べない", value: 4 },
+        ],
+        tip: "納豆・味噌・キムチ・ヨーグルトなどの発酵食品には、腸内の善玉菌を増やすはたらきがあります。週に1〜2回程度では菌のはたらきが定着しにくいので、まずは1日1品、食卓に取り入れることから始めてみてください。",
+      },
+      {
+        group: "gut",
+        text: "野菜・海藻・きのこ・豆類など、食物繊維を意識して摂れている？",
+        options: [
+          { label: "毎食意識して摂れてる", value: 1 },
+          { label: "だいたい摂れてる", value: 2 },
+          { label: "たまに摂れてない日がある", value: 3 },
+          { label: "正直ほとんど摂れてない", value: 4 },
+        ],
+        tip: "食物繊維は、腸内の善玉菌のエサになるだけでなく、便のかさを増やして排出をスムーズにする役割もあります。海藻・きのこ・豆類のいずれかを1日1品プラスするだけで、摂取量は大きく変わります。",
+      },
+      {
+        group: "gut",
+        text: "お通じの頻度は？",
+        options: [
+          { label: "毎日ある", value: 1 },
+          { label: "2日に1回くらい", value: 2 },
+          { label: "3日に1回くらい", value: 3 },
+          { label: "3日以上ないこともよくある", value: 4 },
+        ],
+        tip: "3日以上お通じがない状態が続くと、本来排出されるはずの老廃物が腸内で再吸収されやすくなってしまいます。水分と食物繊維を意識して摂ることに加えて、朝食後にトイレへ行く時間を確保することも効果的です。",
+      },
+      {
+        group: "gut",
+        text: "便の状態（色・におい・形状）は？",
+        options: [
+          { label: "黄色〜黄褐色でバナナ状", value: 1 },
+          { label: "普通だと思う", value: 2 },
+          { label: "色が濃い・硬い・臭いが強い", value: 3 },
+          { label: "正直、気にして見たことがない", value: 4 },
+        ],
+        tip: "理想的な便は、黄色から黄褐色でバナナのような形状とされています。色が濃い・硬い・臭いが強いと感じる日が多いようであれば、腸内環境が乱れているサインの可能性があります。",
+      },
+      {
+        group: "gut",
+        text: "お腹の張り・ガスが溜まりやすい感覚は？",
+        options: [
+          { label: "ほぼない", value: 1 },
+          { label: "時々ある", value: 2 },
+          { label: "よくある", value: 3 },
+          { label: "毎日のように張ってる", value: 4 },
+        ],
+        tip: "お腹の張りやガスが溜まりやすい状態は、腸内で悪玉菌が増えている可能性があります。発酵食品と、そのエサになる食物繊維を一緒に摂ることで、腸内フローラのバランスが整いやすくなります。",
+      },
+      {
+        group: "liver",
+        text: "インスタント食品・スナック菓子・コンビニ弁当を食べる頻度は？",
+        options: [
+          { label: "ほとんど食べない", value: 1 },
+          { label: "週に1〜2回", value: 2 },
+          { label: "週に3〜4回", value: 3 },
+          { label: "ほぼ毎日", value: 4 },
+        ],
+        tip: "インスタント食品やスナック菓子に含まれる添加物は、肝臓が処理する対象を増やしてしまいます。すべてをやめる必要はありませんが、週の頻度を1段階減らすだけでも、肝臓への負担は変わってきます。",
+      },
+      {
+        group: "liver",
+        text: "ねぎ・にんにく・ブロッコリーなど、香味野菜やアブラナ科の野菜を摂る頻度は？",
+        options: [
+          { label: "毎日のように摂ってる", value: 1 },
+          { label: "週に数回", value: 2 },
+          { label: "たまに", value: 3 },
+          { label: "ほとんど摂らない", value: 4 },
+        ],
+        tip: "ねぎ・にんにく・ブロッコリーなどのアブラナ科の野菜には、肝臓の解毒をサポートする硫黄化合物が含まれています。週に数回、これらの食材を意識的に取り入れてみてください。",
+      },
+      {
+        group: "liver",
+        text: "お酒の飲み方・頻度は？",
+        options: [
+          { label: "飲まない、または週1〜2回", value: 1 },
+          { label: "週3〜4回", value: 2 },
+          { label: "ほぼ毎日", value: 3 },
+          { label: "毎日、しかも量が多い", value: 4 },
+        ],
+        tip: "アルコールの分解は、肝臓がほぼ一手に担っています。飲む頻度や量を少し見直すだけでも、肝臓を休ませる時間を作ることができます。まずは週に1日、休肝日を増やすことから始めてみてください。",
+      },
+      {
+        group: "liver",
+        text: "朝、目覚めた瞬間のだるさは？",
+        options: [
+          { label: "スッと起きられる", value: 1 },
+          { label: "ちょっと重い", value: 2 },
+          { label: "だいたい毎日重い", value: 3 },
+          { label: "起きても疲れが取れてない", value: 4 },
+        ],
+        tip: "しっかり寝たはずなのに朝から体が重いと感じる場合、肝臓の代謝機能に負担がかかっているサインの可能性があります。寝る前の食事のタイミングを見直すことも、朝の状態に影響します。",
+      },
+      {
+        group: "liver",
+        text: "肌荒れ・ニキビ・くすみが治りにくい感覚は？",
+        options: [
+          { label: "ない", value: 1 },
+          { label: "多少ある", value: 2 },
+          { label: "治りにくい", value: 3 },
+          { label: "常に何かしらある", value: 4 },
+        ],
+        tip: "肌は、肝臓・腎臓・腸といった通常の排出ルートで処理しきれなかった分を、外側から出そうとすることがあります。肌荒れが治りにくいと感じる時は、内側の排出経路が滞っている可能性も考えてみてください。",
+      },
+      {
+        group: "liver",
+        text: "水分摂取量は？",
+        options: [
+          { label: "1.5L以上意識して摂ってる", value: 1 },
+          { label: "1L前後", value: 2 },
+          { label: "あまり意識してない", value: 3 },
+          { label: "お茶・コーヒーばかりで水はほぼ飲まない", value: 4 },
+        ],
+        tip: "解毒された物質は、最終的に尿として排出されます。水分摂取が不足していると、このサイクルがうまく機能しません。1日1.5L程度を目安に、こまめに水分を摂ることを意識してみてください。",
+      },
+      {
+        group: "lymph",
+        text: "鎖骨を指で押した時、第一関節まで入る？",
+        options: [
+          { label: "第一関節まで入る", value: 1 },
+          { label: "半分くらい入る", value: 2 },
+          { label: "指先しか入らない", value: 3 },
+          { label: "全く入らない", value: 4 },
+        ],
+        tip: "鎖骨を指で押した時に第一関節まで入らない場合、その部分にリンパ液が滞っている可能性があります。湯船での温浴や、鎖骨まわりを優しくマッサージすることで、巡りが促されやすくなります。",
+      },
+      {
+        group: "lymph",
+        text: "肩こり・首こりの慢性度は？",
+        options: [
+          { label: "特にない", value: 1 },
+          { label: "時々ある", value: 2 },
+          { label: "毎日どこかしらある", value: 3 },
+          { label: "もう慢性化して気にしなくなった", value: 4 },
+        ],
+        tip: "肩や首のこりが慢性的に続いている場合、その部分の血流が滞っている可能性があります。長時間同じ姿勢を続けないこと、こまめに肩を動かすことが、巡りの改善につながります。",
+      },
+      {
+        group: "lymph",
+        text: "手足の冷え・むくみやすさは？",
+        options: [
+          { label: "ほぼない", value: 1 },
+          { label: "季節によってある", value: 2 },
+          { label: "年中冷えてる", value: 3 },
+          { label: "冷え＋むくみが常にある", value: 4 },
+        ],
+        tip: "手足の冷えやむくみは、血流が悪くなり老廃物の回収が滞っているサインとして現れることが多いです。湯船に浸かる習慣や、ふくらはぎを動かす軽い運動を取り入れることで、巡りが変わってきます。",
+      },
+      {
+        group: "lymph",
+        text: "汗をかいた時の質（サラサラ／ベタつき・ニオイ）は？",
+        options: [
+          { label: "サラサラ", value: 1 },
+          { label: "まあサラサラ", value: 2 },
+          { label: "少しベタつく", value: 3 },
+          { label: "ベタつき・ニオイが強い", value: 4 },
+        ],
+        tip: "汗がベタついたり、ニオイが強く感じられる時は、汗の中に老廃物が多く含まれている可能性があると言われています。発汗を促す運動や入浴を習慣にすることで、汗の質も変化していきます。",
+      },
+      {
+        group: "lymph",
+        text: "運動習慣（ウォーキング含む）の有無は？",
+        options: [
+          { label: "週3回以上", value: 1 },
+          { label: "週1〜2回", value: 2 },
+          { label: "月数回", value: 3 },
+          { label: "ほとんどしてない", value: 4 },
+        ],
+        tip: "リンパは血管と違ってポンプの役割を持たないため、筋肉を動かすことで流れが促されます。エレベーターではなく階段を使う、一駅分歩くといった、小さな積み重ねからで十分です。",
+      },
+      {
+        group: "lymph",
+        text: "シャワーのみ／湯船、どちらが多い？",
+        options: [
+          { label: "ほぼ毎日湯船", value: 1 },
+          { label: "週3〜4回湯船", value: 2 },
+          { label: "週1回くらい湯船", value: 3 },
+          { label: "ほぼシャワーのみ", value: 4 },
+        ],
+        tip: "シャワーだけで済ませていると、湯船に浸かることで得られる血流促進の効果が得られません。週に数回、10分程度でも湯船に浸かる時間を作ることで、巡りが大きく変わってきます。",
+      },
+      {
+        group: "ans",
+        text: "寝つきの良さは？",
+        options: [
+          { label: "スッと眠れる", value: 1 },
+          { label: "15分くらいで眠れる", value: 2 },
+          { label: "30分以上かかる", value: 3 },
+          { label: "なかなか眠れない", value: 4 },
+        ],
+        tip: "寝つきの悪さは、交感神経が優位なまま夜を迎えているサインかもしれません。就寝前にぬるめのお湯に浸かる、照明を落とすなど、副交感神経に切り替えるための時間を意識的に作ってみてください。",
+      },
+      {
+        group: "ans",
+        text: "夜中に目が覚める頻度は？",
+        options: [
+          { label: "ほぼない", value: 1 },
+          { label: "月に数回", value: 2 },
+          { label: "週に数回", value: 3 },
+          { label: "毎晩のように", value: 4 },
+        ],
+        tip: "夜中に何度も目が覚める場合、自律神経が休息モードに入りきれていない可能性があります。就寝前の過ごし方を見直すことで、睡眠の質そのものが変わってくることがあります。",
+      },
+      {
+        group: "ans",
+        text: "就寝前のブルーライトとの付き合い方は？",
+        options: [
+          { label: "寝る1時間前には触れない", value: 1 },
+          { label: "明るさを落として見る", value: 2 },
+          { label: "普通の明るさで見る", value: 3 },
+          { label: "暗い部屋で画面だけ見て寝落ちする", value: 4 },
+        ],
+        tip: "就寝前のブルーライトは、自律神経を休息モードに切り替えにくくすると言われています。就寝の1時間前にはスマホやパソコンから離れる時間を作ることをおすすめします。",
+      },
+      {
+        group: "ans",
+        text: "湯上がり後、次にスマホ・PCに触れるまでの時間は？",
+        options: [
+          { label: "しばらく経ってから、または就寝まで触れない", value: 1 },
+          { label: "少し経ってから触れる", value: 2 },
+          { label: "お風呂上がってすぐ触れる", value: 3 },
+          { label: "湯船の中でもスマホを触っている", value: 4 },
+        ],
+        tip: "湯船で得られた副交感神経モードを、お風呂上がり直後のスマホ操作で、自分自身で打ち消してしまっている可能性があります。湯上がり後しばらくは、画面から離れる時間を意識してみてください。",
+      },
+      {
+        group: "ans",
+        text: "「気合い」「我慢」で不調を乗り切ることが多い？",
+        options: [
+          { label: "ほぼない", value: 1 },
+          { label: "多少ある", value: 2 },
+          { label: "だいたいそれで乗り切ってきた", value: 3 },
+          { label: "それしか知らずにここまで来た", value: 4 },
+        ],
+        tip: "「気合い」や「我慢」で不調を乗り切るクセは、交感神経を常にオンにしたまま走り続けている状態とも言えます。意識的に「何もしない時間」を作ることが、自律神経を休ませる第一歩になります。",
+      },
+      {
+        group: "ans",
+        text: "スマホ・Wi-Fi・PCなどに、1日どれくらい囲まれて過ごしてる？",
+        options: [
+          { label: "意識して離れる時間を作っている", value: 1 },
+          { label: "仕事中心で、それなりに囲まれている", value: 2 },
+          { label: "起きてる間ほぼずっと", value: 3 },
+          { label: "寝るときも手の届く範囲にある", value: 4 },
+        ],
+        tip: "スマホやWi-Fi、パソコンに囲まれた状態が続くと、自律神経が休む暇がなくなってしまいます。1日のうち数十分でも、デジタル機器から距離を置く時間を作ることをおすすめします。",
+      },
+      {
+        group: "wuxing",
+        element: "wood",
+        text: "些細なことにイライラ・カッとなる頻度は？",
+        options: [
+          { label: "ほぼない", value: 1 },
+          { label: "時々ある", value: 2 },
+          { label: "よくある", value: 3 },
+          { label: "それが普通になっている", value: 4 },
+        ],
+      },
+      {
+        group: "wuxing",
+        element: "fire",
+        text: "人と話してる時、急にドキドキ・落ち着かなくなることは？",
+        options: [
+          { label: "ほぼない", value: 1 },
+          { label: "時々ある", value: 2 },
+          { label: "よくある", value: 3 },
+          { label: "それが普通になっている", value: 4 },
+        ],
+      },
+      {
+        group: "wuxing",
+        element: "earth",
+        text: "同じことを何度も考えて、頭の中がいっぱいになることは？",
+        options: [
+          { label: "ほぼない", value: 1 },
+          { label: "時々ある", value: 2 },
+          { label: "よくある", value: 3 },
+          { label: "それが普通になっている", value: 4 },
+        ],
+      },
+      {
+        group: "wuxing",
+        element: "metal",
+        text: "一人になりたい、誰とも関わりたくないと感じる頻度は？",
+        options: [
+          { label: "ほぼない", value: 1 },
+          { label: "時々ある", value: 2 },
+          { label: "よくある", value: 3 },
+          { label: "それが普通になっている", value: 4 },
+        ],
+      },
+      {
+        group: "wuxing",
+        element: "water",
+        text: "将来や老後に対する、説明できない不安・焦りは？",
+        options: [
+          { label: "ほぼない", value: 1 },
+          { label: "時々ある", value: 2 },
+          { label: "よくある", value: 3 },
+          { label: "それが普通になっている", value: 4 },
+        ],
+      },
+      {
+        group: "resonance",
+        text: "人混みにいると、理由もなくどっと疲れる感覚は？",
+        options: [
+          { label: "ほぼない", value: 1 },
+          { label: "少しある", value: 2 },
+          { label: "よくある", value: 3 },
+          { label: "毎回どっと疲れる", value: 4 },
+        ],
+      },
+      {
+        group: "resonance",
+        text: "満員電車やライブ・イベントなど、人が密集する場所での感覚は？",
+        options: [
+          { label: "特に何も感じない", value: 1 },
+          { label: "ちょっと疲れる", value: 2 },
+          { label: "かなり消耗する", value: 3 },
+          { label: "なるべく避けるようにしている", value: 4 },
+        ],
+      },
+      {
+        group: "resonance",
+        text: "誰かの怒り・悲しみを、まるで自分のことのように感じてしまうことは？",
+        options: [
+          { label: "ほぼない", value: 1 },
+          { label: "少しある", value: 2 },
+          { label: "よくある", value: 3 },
+          { label: "自分の感情なのか分からなくなる", value: 4 },
+        ],
+      },
+      {
+        group: "resonance",
+        text: "特定の場所（実家・職場・人の集まる店など）にいると、明らかに体が重くなる感覚は？",
+        options: [
+          { label: "ない", value: 1 },
+          { label: "1か所くらいある", value: 2 },
+          { label: "いくつか思い当たる", value: 3 },
+          { label: "もはやどこにいても消耗する", value: 4 },
+        ],
+      },
+      {
+        group: "bridge",
+        text: "「体に直接触れずに、周波数を当てて体の反応を観察できる」と言われたら、興味は？",
+        options: [
+          { label: "すでに実践している／とても興味がある", value: 1 },
+          { label: "興味はある", value: 2 },
+          { label: "半信半疑だけど気になる", value: 3 },
+          { label: "ちょっと怖いけど、それくらい今が限界", value: 4 },
+        ],
+      },
+    ];
+
+    const GROUP_INFO = {
+      gut: { label: "腸内環境", color: "#6FE2D6" },
+      liver: { label: "肝臓解毒", color: "#F2C879" },
+      lymph: { label: "血流・リンパ", color: "#9FD16B" },
+      ans: { label: "自律神経", color: "#FF9B6A" },
+      wuxing: { label: "感情・五行", color: "#C792EA" },
+      resonance: { label: "共鳴体質", color: "#7AA7E8" },
+    };
+    const AXIS_ORDER = ["gut", "liver", "lymph", "ans", "wuxing", "resonance"];
+
+    const WUXING_INFO = {
+      wood: {
+        name: "木（肝・怒）",
+        advice: "今、一番ゆらいでいるのは「木・肝」の要素です。些細なことへの怒りやイライラが、知らないうちに溜め込まれているサインかもしれません。漢方の考え方では、肝は決断や計画を司る臓器とされ、ストレスを受けやすい場所でもあります。深呼吸の時間を増やしたり、思っていることを紙に書き出してみることで、溜め込んだ感情が少し緩みやすくなります。",
+      },
+      fire: {
+        name: "火（心・動揺）",
+        advice: "今、一番ゆらいでいるのは「火・心」の要素です。気持ちが落ち着かなかったり、人と話している時にドキドキしやすい状態が続いているかもしれません。心は精神や血の巡りを司る臓器とされ、興奮や動揺の影響を受けやすい場所です。就寝前にゆったりとした時間を作ることが、整えるサポートになります。",
+      },
+      earth: {
+        name: "土（脾・思）",
+        advice: "今、一番ゆらいでいるのは「土・脾」の要素です。同じことを何度も考えてしまい、頭の中がいっぱいになりやすい状態が続いているかもしれません。脾は思考や消化を司る臓器とされ、考えすぎる癖があると消化機能にも影響が出やすいと言われています。一度ノートに考えを書き出して、頭の外に出してみることをおすすめします。",
+      },
+      metal: {
+        name: "金（肺・悲）",
+        advice: "今、一番ゆらいでいるのは「金・肺」の要素です。一人になりたい、誰とも関わりたくないという気持ちが強くなっているかもしれません。肺は悲しみや呼吸を司る臓器とされ、孤独感や寂しさの影響を受けやすい場所です。深く呼吸をする時間を意識的に増やすことで、少しずつ整いやすくなります。",
+      },
+      water: {
+        name: "水（腎・恐）",
+        advice: "今、一番ゆらいでいるのは「水・腎」の要素です。将来や老後について、説明できない不安や焦りを感じやすい状態が続いているかもしれません。腎は恐れや生命力を司る臓器とされ、不安感の影響を受けやすい場所です。体を温めること、十分な休息を取ることが、いたわるサポートになります。",
+      },
+    };
+
+    function getResonanceAdvice(avg) {
+      if (avg <= 1.75) return "周りの感情に振られにくく、自分の軸をしっかり保てているタイプです。今のバランスを大切にしてください。";
+      if (avg <= 2.75) return "場所や人によっては、知らないうちにエネルギーをもらいやすいタイプかもしれません。人と会った後は、意識的に一人の時間を作ってリセットすることをおすすめします。";
+      return "人混みや誰かの感情を、まるで自分のことのように引き受けやすいタイプのようです。人と会う前後に深呼吸をする、意識的に距離を取る時間を作るなど、自分を守る工夫が助けになります。";
+    }
+
+    const COLORS = {
+      bg: "#0E1024",
+      panel: "#161A38",
+      panelBorder: "rgba(242,200,121,0.16)",
+      text: "#F5F1E8",
+      muted: "#9097B8",
+      coral: "#FF9B6A",
+      gold: "#F2C879",
+      teal: "#6FE2D6",
+    };
+
+    function CosmicDetoxShindan() {
+      const [screen, setScreen] = useState("intro");
+      const [step, setStep] = useState(0);
+      const [answers, setAnswers] = useState([]);
+      const [gaugeOn, setGaugeOn] = useState(false);
+      const [copied, setCopied] = useState(false);
+
+      useEffect(() => {
+        if (screen === "result") {
+          setGaugeOn(false);
+          const t = setTimeout(() => setGaugeOn(true), 150);
+          return () => clearTimeout(t);
+        }
+      }, [screen]);
+
+      const start = () => { setStep(0); setAnswers([]); setScreen("question"); };
+      const handleAnswer = (value) => {
+        const next = [...answers, value];
+        setAnswers(next);
+        if (step < QUESTIONS.length - 1) setStep(step + 1);
+        else setScreen("result");
+      };
+      const reset = () => { setStep(0); setAnswers([]); setScreen("intro"); };
+
+      const groupScore = { gut: 0, liver: 0, lymph: 0, ans: 0, wuxing: 0, resonance: 0 };
+      const groupCount = { gut: 0, liver: 0, lymph: 0, ans: 0, wuxing: 0, resonance: 0 };
+      const wuxingByElement = {};
+      QUESTIONS.forEach((q, i) => {
+        const v = answers[i];
+        if (typeof v !== "number" || q.group === "bridge") return;
+        groupScore[q.group] += v;
+        groupCount[q.group] += 1;
+        if (q.group === "wuxing") wuxingByElement[q.element] = v;
+      });
+
+      const groupPercent = {};
+      AXIS_ORDER.forEach((g) => {
+        const n = groupCount[g] || QUESTIONS.filter((q) => q.group === g).length;
+        const max = n * 4;
+        const min = n * 1;
+        const score = groupScore[g] || min;
+        groupPercent[g] = Math.round(100 - ((score - min) / (max - min)) * 100);
+      });
+
+      const totalMin = AXIS_ORDER.reduce((s, g) => s + QUESTIONS.filter((q) => q.group === g).length * 1, 0);
+      const totalMax = AXIS_ORDER.reduce((s, g) => s + QUESTIONS.filter((q) => q.group === g).length * 4, 0);
+      const totalScore = AXIS_ORDER.reduce((s, g) => s + (groupScore[g] || 0), 0);
+      const isComplete = answers.length === QUESTIONS.length;
+      const overallPercent = isComplete
+        ? Math.round(100 - ((totalScore - totalMin) / (totalMax - totalMin)) * 100)
+        : 50;
+
+      const softAvg = isComplete
+        ? Math.round((groupPercent.gut + groupPercent.liver + groupPercent.lymph) / 3)
+        : 50;
+      const ansPercent = isComplete ? groupPercent.ans : 50;
+
+      let pattern = "B";
+      if (isComplete) {
+        if (overallPercent >= 70) pattern = "C";
+        else if (softAvg >= 55 && ansPercent < 50) pattern = "A";
+      }
+
+      function topTips(groupKeys, limit) {
+        const items = [];
+        QUESTIONS.forEach((q, i) => {
+          if (groupKeys.includes(q.group) && q.tip && typeof answers[i] === "number" && answers[i] >= 3) {
+            items.push({ value: answers[i], tip: q.tip });
+          }
+        });
+        items.sort((a, b) => b.value - a.value);
+        return items.slice(0, limit).map((it) => it.tip);
+      }
+      const foodTips = isComplete ? topTips(["gut", "liver"], 2) : [];
+      const lifeTips = isComplete ? topTips(["lymph", "ans"], 2) : [];
+
+      const wuxingOrder = ["wood", "fire", "earth", "metal", "water"];
+      const topElement = isComplete
+        ? wuxingOrder.reduce((best, k) => ((wuxingByElement[k] || 0) > (wuxingByElement[best] || 0) ? k : best), wuxingOrder[0])
+        : null;
+
+      const resonanceAvg = isComplete
+        ? (groupScore.resonance || 0) / (QUESTIONS.filter((q) => q.group === "resonance").length)
+        : 2;
+
+      const BRIDGE = {
+        A: {
+          lead: "今回の回答を見る限り、食事や生活習慣にはすでにしっかり気を配っていらっしゃるようです。それでもなかなか変化を感じにくいとしたら、それは頑張りが足りないからではありません。土台となる自律神経そのものが、その頑張りをうまく受け取れていない状態にあるのかもしれません。これは、食べ物や根性で直接働きかけることが難しい領域です。",
+          cta: "今が、まさに土台を見直すタイミングだと思います。",
+        },
+        B: {
+          lead: "今は、土台となる自律神経も、毎日の生活習慣も、どちらも少しお疲れ気味のようです。どちらから整えていただいても間違いではありませんが、一番早く変化を感じやすいのは、実は土台となる自律神経からアプローチすることだと言われています。",
+          cta: "毎日の生活習慣と一緒に、土台となる自律神経も整えていきませんか。",
+        },
+        C: {
+          lead: "今の生活習慣の状態は、かなり整っているようです。ここからは、土台となる自律神経のメンテナンスを定期的に行うことで、今の良い状態をより長く保ちやすくなります。",
+          cta: "今の良い状態を保つために、定期的に整える時間を取り入れてみてください。",
+        },
+      };
+
+      const r = 70;
+      const circumference = 2 * Math.PI * r;
+      const offset = gaugeOn
+        ? circumference - circumference * (overallPercent / 100)
+        : circumference;
+
+      const copyResult = async () => {
+        const text = `【デトックス度診断】\nデトックス度 ${overallPercent}%\n今、一番揺れてるのは「${topElement ? WUXING_INFO[topElement].name : ""}」\n\n#デトックス度診断 #Healy #バイオレゾナンス`;
+        try {
+          await navigator.clipboard.writeText(text);
+          setCopied(true);
+          setTimeout(() => setCopied(false), 2200);
+        } catch (e) {
+          setCopied(false);
+        }
+      };
+
+      return (
+        <div style={{
+          minHeight: "100vh", width: "100%",
+          background: "radial-gradient(circle at 50% -10%, #232753 0%, #0E1024 55%)",
+          display: "flex", alignItems: "center", justifyContent: "center",
+          padding: "24px 16px",
+          fontFamily: "'Zen Kaku Gothic New', sans-serif",
+        }}>
+          <style>{`
+            @import url('https://fonts.googleapis.com/css2?family=Shippori+Mincho:wght@500;700&family=Zen+Kaku+Gothic+New:wght@400;500;700&family=JetBrains+Mono:wght@500;600&display=swap');
+            .breathe { animation: breathe 2.6s ease-in-out infinite; }
+            @keyframes breathe {
+              0%, 100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(242,200,121,0.0); }
+              50% { transform: scale(1.025); box-shadow: 0 0 24px 2px rgba(242,200,121,0.25); }
+            }
+            .answer-btn { transition: border-color .2s ease, background-color .2s ease, transform .15s ease; }
+            .answer-btn:hover { border-color: rgba(242,200,121,0.55); background-color: rgba(242,200,121,0.06); transform: translateY(-1px); }
+            .answer-btn:focus-visible { outline: 2px solid #F2C879; outline-offset: 2px; }
+            .cta-btn:focus-visible, .link-btn:focus-visible { outline: 2px solid #F2C879; outline-offset: 2px; }
+            .barfill { transition: width .8s ease-out; }
+            @media (prefers-reduced-motion: reduce) {
+              .breathe, .barfill, .answer-btn, .gauge-arc { animation: none !important; transition: none !important; }
+            }
+          `}</style>
+
+          <div style={{
+            width: "100%", maxWidth: 440,
+            background: COLORS.panel,
+            border: `1px solid ${COLORS.panelBorder}`,
+            borderRadius: 28,
+            padding: "36px 26px",
+            boxShadow: "0 24px 60px rgba(0,0,0,0.45)",
+            color: COLORS.text,
+          }}>
+            {screen === "intro" && (
+              <div style={{ textAlign: "center" }}>
+                <div style={{ display: "flex", justifyContent: "center", marginBottom: 18 }}>
+                  <Sparkles size={28} color={COLORS.gold} />
+                </div>
+                <p style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 12, letterSpacing: "0.1em", color: COLORS.muted, marginBottom: 14 }}>
+                  全33問・ガチ勢向け本格診断
+                </p>
+                <h1 style={{ fontFamily: "'Shippori Mincho', serif", fontWeight: 700, fontSize: 25, lineHeight: 1.5, marginBottom: 10 }}>
+                  デトックス度診断
+                </h1>
+                <p style={{ fontSize: 13, color: COLORS.gold, marginBottom: 18 }}>
+                  〜体の声、見逃していませんか？〜
+                </p>
+                <p style={{ color: COLORS.muted, fontSize: 13.5, lineHeight: 1.9, marginBottom: 26 }}>
+                  腸内環境・肝臓解毒・血流リンパ・自律神経・感情（五行）・共鳴体質。<br />
+                  6つの視点から、今のあなたを覗いてみる診断です。
+                </p>
+                <button onClick={start} className="breathe cta-btn" style={{
+                  width: "100%", padding: "16px 0", borderRadius: 18, border: "none",
+                  background: `linear-gradient(135deg, ${COLORS.coral}, ${COLORS.gold})`,
+                  color: "#1A1326", fontWeight: 700, fontSize: 16, cursor: "pointer",
+                }}>
+                  診断をはじめる →
+                </button>
+                <p style={{ fontSize: 11, color: COLORS.muted, marginTop: 14 }}>所要時間 約8分</p>
+              </div>
+            )}
+
+            {screen === "question" && (
+              <div>
+                <div style={{ display: "flex", justifyContent: "space-between", fontSize: 11, color: COLORS.muted, fontFamily: "'JetBrains Mono', monospace", marginBottom: 6 }}>
+                  <span>{GROUP_INFO[QUESTIONS[step].group]?.label || "橋渡し"}</span>
+                  <span>Q{String(step + 1).padStart(2, "0")} / {QUESTIONS.length}</span>
+                </div>
+                <div style={{ height: 5, borderRadius: 999, background: "rgba(255,255,255,0.12)", marginBottom: 24, overflow: "hidden" }}>
+                  <div className="barfill" style={{
+                    height: "100%",
+                    width: `${((step + 1) / QUESTIONS.length) * 100}%`,
+                    background: `linear-gradient(90deg, ${COLORS.coral}, ${COLORS.gold})`,
+                    borderRadius: 999,
+                  }} />
+                </div>
+                <h2 style={{ fontFamily: "'Shippori Mincho', serif", fontSize: 19, lineHeight: 1.7, fontWeight: 500, marginBottom: 24 }}>
+                  {QUESTIONS[step].text}
+                </h2>
+                <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                  {QUESTIONS[step].options.map((opt, i) => (
+                    <button key={i} onClick={() => handleAnswer(opt.value)} className="answer-btn" style={{
+                      textAlign: "left", padding: "14px 16px", borderRadius: 16,
+                      border: "1px solid rgba(255,255,255,0.14)",
+                      background: "rgba(255,255,255,0.03)",
+                      color: COLORS.text, fontSize: 14, lineHeight: 1.6, cursor: "pointer",
+                    }}>
+                      {opt.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {screen === "result" && (
+              <div>
+                <div style={{ display: "flex", justifyContent: "center", marginBottom: 18 }}>
+                  <svg width="160" height="160" viewBox="0 0 160 160">
+                    <defs>
+                      <linearGradient id="gaugeGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+                        <stop offset="0%" stopColor={COLORS.coral} />
+                        <stop offset="100%" stopColor={COLORS.teal} />
+                      </linearGradient>
+                    </defs>
+                    <circle cx="80" cy="80" r={r} fill="none" stroke="rgba(255,255,255,0.10)" strokeWidth="10" />
+                    <circle
+                      className="gauge-arc"
+                      cx="80" cy="80" r={r} fill="none"
+                      stroke="url(#gaugeGrad)" strokeWidth="10" strokeLinecap="round"
+                      strokeDasharray={circumference} strokeDashoffset={offset}
+                      transform="rotate(-90 80 80)"
+                      style={{ transition: "stroke-dashoffset 1.3s ease-out" }}
+                    />
+                    <text x="80" y="76" textAnchor="middle" fontFamily="'JetBrains Mono', monospace" fontSize="30" fontWeight="600" fill={COLORS.text}>
+                      {overallPercent}%
+                    </text>
+                    <text x="80" y="96" textAnchor="middle" fontFamily="'JetBrains Mono', monospace" fontSize="11" fill={COLORS.muted}>
+                      デトックス度
+                    </text>
+                  </svg>
+                </div>
+
+                <div style={{ border: `1px solid ${COLORS.panelBorder}`, borderRadius: 16, padding: "16px 16px 14px", marginBottom: 20 }}>
+                  <p style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 11, letterSpacing: "0.08em", color: COLORS.muted, marginBottom: 10 }}>
+                    6つの視点で見た内訳
+                  </p>
+                  <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                    {AXIS_ORDER.map((key) => {
+                      const val = groupPercent[key];
+                      return (
+                        <div key={key}>
+                          <div style={{ display: "flex", justifyContent: "space-between", fontSize: 11.5, color: COLORS.muted, marginBottom: 4 }}>
+                            <span>{GROUP_INFO[key].label}</span><span>{val}%</span>
+                          </div>
+                          <div style={{ height: 6, borderRadius: 999, background: "rgba(255,255,255,0.10)", overflow: "hidden" }}>
+                            <div className="barfill" style={{
+                              height: "100%", width: `${val}%`, borderRadius: 999,
+                              background: GROUP_INFO[key].color,
+                            }} />
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                <div style={{ marginBottom: 16 }}>
+                  <h3 style={{ fontFamily: "'Shippori Mincho', serif", fontSize: 15, fontWeight: 700, marginBottom: 8, color: COLORS.gold }}>食事アドバイス</h3>
+                  {foodTips.length > 0 ? (
+                    <ul style={{ paddingLeft: 18, margin: 0, fontSize: 13, lineHeight: 1.9, color: "rgba(245,241,232,0.9)" }}>
+                      {foodTips.map((t, i) => <li key={i} style={{ marginBottom: 6 }}>{t}</li>)}
+                    </ul>
+                  ) : (
+                    <p style={{ fontSize: 13, lineHeight: 1.9, color: "rgba(245,241,232,0.9)" }}>
+                      今のところ、食事面で大きな乱れは見られません。今のペースを保っていただいて大丈夫です。
+                    </p>
+                  )}
+                </div>
+
+                <div style={{ marginBottom: 16 }}>
+                  <h3 style={{ fontFamily: "'Shippori Mincho', serif", fontSize: 15, fontWeight: 700, marginBottom: 8, color: COLORS.gold }}>生活習慣アドバイス</h3>
+                  {lifeTips.length > 0 ? (
+                    <ul style={{ paddingLeft: 18, margin: 0, fontSize: 13, lineHeight: 1.9, color: "rgba(245,241,232,0.9)" }}>
+                      {lifeTips.map((t, i) => <li key={i} style={{ marginBottom: 6 }}>{t}</li>)}
+                    </ul>
+                  ) : (
+                    <p style={{ fontSize: 13, lineHeight: 1.9, color: "rgba(245,241,232,0.9)" }}>
+                      生活習慣も、今のところ大きな乱れは見られません。
+                    </p>
+                  )}
+                </div>
+
+                <div style={{ borderTop: `1px solid ${COLORS.panelBorder}`, paddingTop: 16, marginBottom: 16 }}>
+                  <h3 style={{ fontFamily: "'Shippori Mincho', serif", fontSize: 15, fontWeight: 700, marginBottom: 8, color: COLORS.gold }}>五行からのアドバイス</h3>
+                  <p style={{ fontSize: 13, lineHeight: 1.9, color: "rgba(245,241,232,0.9)", marginBottom: 14 }}>
+                    {topElement ? WUXING_INFO[topElement].advice : ""}
+                  </p>
+                  <h3 style={{ fontFamily: "'Shippori Mincho', serif", fontSize: 15, fontWeight: 700, marginBottom: 8, color: COLORS.gold }}>共鳴体質</h3>
+                  <p style={{ fontSize: 13, lineHeight: 1.9, color: "rgba(245,241,232,0.9)" }}>
+                    {getResonanceAdvice(resonanceAvg)}
+                  </p>
+                </div>
+
+                <div style={{ borderTop: `1px solid ${COLORS.panelBorder}`, paddingTop: 16, marginBottom: 18 }}>
+                  <p style={{ fontSize: 13, lineHeight: 1.9, color: "rgba(245,241,232,0.9)", marginBottom: 12 }}>
+                    ここまでのアドバイスは、食事や生活習慣として、今日から少しずつ取り入れていただけるものです。腸内環境も、肝臓も、血流やリンパも、すべて体の中で働き続けている仕組みです。そしてそれらが正常に働くための土台になっているのが、自律神経です。
+                  </p>
+                  <p style={{ fontSize: 13, lineHeight: 1.9, color: "rgba(245,241,232,0.9)", marginBottom: 12 }}>
+                    食事や生活習慣は、いわば毎日アップデートしていく「ソフトウェア」のようなものです。一方で、自律神経は、そのソフトウェアを動かしている「ハードウェア」そのものにあたります。ソフトウェアだけをいくら整えても、土台となるハードウェアが乱れていると、その効果を十分に受け取れないことがあります。
+                  </p>
+                  <p style={{ fontSize: 13, lineHeight: 1.9, color: "rgba(245,241,232,0.9)", marginBottom: 12 }}>
+                    {BRIDGE[pattern].lead}
+                  </p>
+                  <p style={{ fontSize: 13, lineHeight: 1.9, color: "rgba(245,241,232,0.9)", marginBottom: 14 }}>
+                    自律神経は、食事のように直接「食べて整える」ことが難しく、根性のように「気合いで変える」こともできない場所です。そこにアプローチする方法のひとつとして、周波数を使って体の反応を観察する「バイオレゾナンス」という考え方があります。Healyは、このバイオレゾナンスの仕組みを使ったセルフケアデバイスです。体に直接周波数を当てて、その時々の反応をそのまま観察することができます。
+                  </p>
+                  <p style={{ fontSize: 13.5, fontWeight: 700, color: COLORS.gold, borderTop: `1px solid ${COLORS.panelBorder}`, paddingTop: 12 }}>
+                    {BRIDGE[pattern].cta}
+                  </p>
+                </div>
+
+                <a href={HEALY_SESSION_URL} target="_blank" rel="noreferrer" className="cta-btn" style={{
+                  display: "block", textAlign: "center", width: "100%", padding: "15px 0",
+                  borderRadius: 16,
+                  background: `linear-gradient(135deg, ${COLORS.coral}, ${COLORS.gold})`,
+                  color: "#1A1326", fontWeight: 700, fontSize: 14.5, textDecoration: "none", marginBottom: 10,
+                }}>
+                  Healy個別セッションを覗いてみる
+                </a>
+
+                <div style={{ display: "flex", gap: 8, marginBottom: 10 }}>
+                  <a href={NOTE_URL} target="_blank" rel="noreferrer" className="link-btn" style={{
+                    flex: 1, textAlign: "center", padding: "12px 0", borderRadius: 14,
+                    border: "1px solid rgba(255,255,255,0.18)", color: COLORS.text, fontSize: 13, textDecoration: "none",
+                  }}>noteで深く知る</a>
+                  <a href={LINE_URL} target="_blank" rel="noreferrer" className="link-btn" style={{
+                    flex: 1, textAlign: "center", padding: "12px 0", borderRadius: 14,
+                    border: "1px solid rgba(255,255,255,0.18)", color: COLORS.text, fontSize: 13, textDecoration: "none",
+                  }}>LINEで聞いてみる</a>
+                </div>
+
+                <button onClick={copyResult} className="link-btn" style={{
+                  width: "100%", padding: "12px 0", borderRadius: 14,
+                  border: "1px solid rgba(255,255,255,0.18)", background: "transparent",
+                  color: COLORS.text, fontSize: 13, cursor: "pointer", marginBottom: 16,
+                }}>
+                  {copied ? "コピーしました！ストーリーに貼ってみて" : "診断結果をシェアする"}
+                </button>
+
+                <button onClick={reset} style={{
+                  display: "block", margin: "0 auto", background: "none", border: "none",
+                  color: COLORS.muted, fontSize: 12.5, textDecoration: "underline", cursor: "pointer",
+                }}>
+                  もう一度診断する
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+      );
+    }
+
+    const root = ReactDOM.createRoot(document.getElementById("root"));
+    root.render(<CosmicDetoxShindan />);
+  </script>
+</body>
+</html>
